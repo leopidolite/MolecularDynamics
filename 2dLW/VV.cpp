@@ -3,6 +3,9 @@
 #include <vector> 
 #include <string>
 #include <list>
+#include <cmath>
+#include <tuple> 
+
 using namespace std; 
 
 //// 2d Lewis-Wanhstrom: 3 atoms/molecule, indexed i, i + N, i + 2*N
@@ -10,8 +13,8 @@ using namespace std;
 double rho_star = 0.25;
 int N = 300; 
 double T_star = 5.0;
-string prefix = "2dLW.300.0.25.melt.cool2"; // Name outputs
-string read_prefix = "/Users/leo/C++/MD_Inputs/densetest1"; // Read input from
+string prefix = "300_R3_1.0T"; // Name outputs
+string read_prefix = "/Users/leo/C++/MD_Inputs/300_1000tau_melt"; // Read input from
 string folderpath = "/Users/leo/C++/Outputs/"; // Write output to this folder 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -35,17 +38,18 @@ double d_23 = 2*sin(0.5*apical); // d_23 imaginary bond length
 
 
 // Create Output Files 
-std::ofstream xtraj_melt(folderpath + prefix + "_melt_xtraj.txt");
-std::ofstream ytraj_melt(folderpath + prefix + "_melt_ytraj.txt"); 
-std::ofstream vxtraj_melt(folderpath + prefix + "_melt_vxtraj.txt"); 
-std::ofstream vytraj_melt(folderpath + prefix + "_melt_vytraj.txt");
+std::ofstream xtraj(folderpath + prefix + "_xtraj.txt");
+std::ofstream ytraj(folderpath + prefix + "_ytraj.txt"); 
+std::ofstream vxtraj(folderpath + prefix + "_vxtraj.txt"); 
+std::ofstream vytraj(folderpath + prefix + "_vytraj.txt");
 std::ofstream kineticE(folderpath + prefix + "_KE.txt");
 std::ofstream potentialE(folderpath + prefix + "_PE.txt");
-std::ofstream xtraj_cool(folderpath + prefix + "_cool_xtraj.txt");
-std::ofstream ytraj_cool(folderpath + prefix + "_cool_ytraj.txt"); 
-std::ofstream vxtraj_cool(folderpath + prefix + "_cool_vxtraj.txt"); 
-std::ofstream vytraj_cool(folderpath + prefix + "_cool_vytraj.txt");
 
+// Output files for adjusted temperature: 
+std::ofstream x_init(folderpath + prefix + "_x_initial.txt");
+std::ofstream y_init(folderpath + prefix + "_y_initial.txt"); 
+std::ofstream vx_init(folderpath + prefix + "_vx_initial.txt"); 
+std::ofstream vy_init(folderpath + prefix + "_vy_initial.txt");
 
 //define global vectors of trajectory 
 std::vector<double> x;
@@ -59,21 +63,24 @@ std::vector<double> vy_12(3*N);
 
 
 //FUNCTION - store values 
-inline void store_melt(){
+
+inline void store(){
     for (int i=0; i<3*N; i++){
-        xtraj_melt << x[i] << "\n";
-        ytraj_melt << y[i] << "\n";
-        vxtraj_melt << vx[i] << "\n";
-        vytraj_melt << vy[i] << "\n";
+        xtraj << x[i] << "\n";
+        ytraj << y[i] << "\n";
+        vxtraj << vx[i] << "\n";
+        vytraj << vy[i] << "\n";
     }
 }
-inline void store_cool(){
+
+inline void store_initial(){
     for (int i=0; i<3*N; i++){
-        xtraj_cool << x[i] << "\n";
-        ytraj_cool << y[i] << "\n";
-        vxtraj_cool << vx[i] << "\n";
-        vytraj_cool << vy[i] << "\n";
+        x_init << x[i] << "\n";
+        y_init<< y[i] << "\n";
+        vx_init << vx[i] << "\n";
+        vy_init << vy[i] << "\n";
     }
+    cout << "Initial state stored" << "\n";
 }
 
 //FUNCTION - read from file into vector<double> 
@@ -415,9 +422,9 @@ void scale_vel(double scale){
     }
 }
 
+double measured_temp = 0;
 //FUNCTION - verlocity verlet for given number of timesteps
-void vel_verlet(int tsteps){
-
+void vel_verlet(int tsteps, bool measure_temp, bool store_traj){
     // Uncomment when using neighbor lists 
     // std::tuple<vector<int>,vector<int>> nbgh;
     // std::vector<int> npoint;
@@ -476,67 +483,75 @@ void vel_verlet(int tsteps){
         // RATTLE velocity constraints 
         vel_constraints_analytical();
 
-        ////Energy Computations
-        // if(t<100 && t%10 != 0){
-        //     // compute_energies(npoint, nlist);
-        //     compute_energies_LL();
-        // }
+
+        // Energy and trajectory storage, temperature measurement
         if(t%10 == 0){
-            // compute_energies(npoint, nlist);
-            compute_energies_LL();
+            if(store_traj== true){
+                compute_energies_LL();             
+                store(); // Store every 10 timesteps, and compute energies when storing
+            }
+            else {
+                if(measure_temp == true){
+                    double KE = 0;
+                    for(int i = 0; i<3*N; i++){
+                        KE += 0.5*(vx[i]*vx[i] + vy[i]*vy[i]);
+                    }
+                    measured_temp += (2.0 / (3.0*N)) * KE /(tsteps/10);
+                }
+            }
         }
+    }
+}
+
+void adjust_temp(double target_temp){
+    vel_verlet(10/dt, true, false); // Measure temperature
+    double mtemp = measured_temp;
+    cout<< "Beginning temperature: "<< measured_temp << "\n";
+    while (mtemp > (target_temp +0.005) || mtemp < (target_temp - 0.005)){
+        double tscale = sqrt((target_temp)/mtemp);
+        scale_vel(tscale);
+        vel_verlet(20/dt, false, false); // relax, no measurement
+        vel_verlet(10/dt, true, false); // re-measure temperature
+        mtemp = measured_temp;
+        measured_temp = 0;
+        cout << "Adjusted temperature: " << mtemp << "\n";
     }
 }
 
 //MAIN FUNCTION 
 int main(){
 
-//// create input files 
+//// Read from initial 
 
-//// Read from melted/other
-    // x = read(" ");
-    // y = read(" ");
-    // vx = read(" ");
-    // vy = read(" ");  
-
-
-//// Read directly from intial (lattice) state
-    x = read(read_prefix+ "_x_initial.txt");
+    x = read(read_prefix+"_x_initial.txt");
     y = read(read_prefix+"_y_initial.txt");
     vx = read(read_prefix+"_vx_initial.txt");
     vy = read(read_prefix+"_vy_initial.txt");  
+    // store();  // not storing intiial state
+
     // Store initial values from x0,y0,vx0,vy0 and make cell lists
-    make_cell_lists(); ////! Uncomment for linkedlist use
+    make_cell_lists();
 
-    //// SIMULATION 
-    //Melting Lattice
-    double time = 100; //100 tau 'melting' time 
-    int timesteps = time/dt;
+    //// SIMULATION  - modify at will 
+    adjust_temp(1.0); // Adjust temperature to ~1.0
+    cout << "Relaxing 1000 tau ..." << "\n";
+    vel_verlet(1000/dt, false, false); // Relax fully 
+    cout << "Collecting data 10^5 tau ..." << "\n";
+    vel_verlet(1000000/dt, false, true); // Take Data
     
-    vel_verlet(timesteps);
-    store_melt();
-    ///// TEST temperature scaling- REMOVE FOR FULL SIMS
-    scale_vel(0.25);
-    vel_verlet(timesteps);
-    store_cool();
-    scale_vel(0.25);
-    vel_verlet(timesteps);
-    store_cool();
+    store_initial(); // store final configuration as new initial state
 
-    
-
-    xtraj_melt.close();
-    ytraj_melt.close();
-    vxtraj_melt.close();
-    vytraj_melt.close();
-    
+    xtraj.close();
+    ytraj.close();
+    vxtraj.close();
+    vytraj.close();
     kineticE.close();
     potentialE.close();
 
-    xtraj_cool.close();
-    ytraj_cool.close();
-    vxtraj_cool.close();
-    vytraj_cool.close();
+    x_init.close();
+    y_init.close();
+    vx_init.close();
+    vy_init.close();
 
     return  0;
 }
