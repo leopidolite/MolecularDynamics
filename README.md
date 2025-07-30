@@ -1,7 +1,8 @@
-### Molecular Dynamics for 2D Trimers 
+# $\textbf{Molecular Dynamics for 2D Trimers}$
 
-  • Parallelized velocity-verlet integrator for rigid trimers\
-  • Processing of trajectory files, analysis of liquid structure and orientational order\
-  • Scaled-particle theory (SPT) for analytical prediction of equations of state of hard-disk trimers
+  • $\text{Parallelized velocity-verlet integrator for rigid trimers}$\
+  • $\text{Processing of trajectory files, analysis of liquid structure and orientational order}$\
+  • $\text{Scaled-particle theory (SPT) for analytical prediction of equations of state of hard-disk trimers}$
   
-_Running report on findings and theory: [WIP]_
+$\textit{Running report on findings and theory:\ \ } \text{[WIP]}$
+
