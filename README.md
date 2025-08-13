@@ -4,5 +4,5 @@
   • $\text{Processing of trajectory files, analysis of liquid structure and orientational order}$\
   • $\text{Scaled-particle theory (SPT) for analytical prediction of equations of state of hard-disk trimers}$
   
-$\textit{Running report on findings and theory:\ \ } \href{https://drive.google.com/file/d/1hCvbyixvMbHFy6UrJzGE1Yd5gZY0--au/view?usp=sharing}{July 2025}$
+$\textit{Running report on findings and theory:\ \ }$ https://drive.google.com/file/d/1hCvbyixvMbHFy6UrJzGE1Yd5gZY0--au/view?usp=sharing - July 2025
 
